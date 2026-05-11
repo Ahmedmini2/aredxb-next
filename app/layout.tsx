@@ -2,6 +2,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
+import { ChatProvider } from '@/components/ChatContext';
+import ChatOverlay from '@/components/ChatOverlay';
 
 export const metadata: Metadata = {
   title: 'Allegiance Real Estate — Find Winning Properties in Seconds',
@@ -47,9 +49,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="light" suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{ __html: applyThemeAfterMount }} />
-        <Nav />
-        {children}
-        <Footer />
+        <ChatProvider>
+          <Nav />
+          {children}
+          <Footer />
+          <ChatOverlay />
+        </ChatProvider>
       </body>
     </html>
   );

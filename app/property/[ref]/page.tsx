@@ -7,6 +7,7 @@ import {
   type FitContext, type FitResult, type ExitResult, type CommunityData
 } from '@/lib/analyzers';
 import PropertyGalleryClient from '@/components/PropertyGallery';
+import AnalyzerRow from '@/components/AnalyzerRow';
 
 export const revalidate = 600;
 
@@ -283,26 +284,6 @@ export default async function PropertyDetailPage({ params }: { params: Promise<{
         </div>
       </section>
     </>
-  );
-}
-
-function AnalyzerRow({ icon, title, desc, children }: { icon: string; title: string; desc: string; children: React.ReactNode }) {
-  return (
-    <article className="ai-tool-row open">
-      <header className="ai-tool-head">
-        <div className="ai-tool-meta">
-          <div className="ai-icon"><i className={`fa ${icon}`} /></div>
-          <div>
-            <h3>{title}</h3>
-            <p>{desc}</p>
-          </div>
-        </div>
-        <span className="ai-calc-btn">Hide analysis</span>
-      </header>
-      <div className="ai-tool-body">
-        <div className="ai-result">{children}</div>
-      </div>
-    </article>
   );
 }
 

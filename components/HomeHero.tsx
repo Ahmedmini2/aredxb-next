@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import HomeCarousel from './HomeCarousel';
+import { useChat } from './ChatContext';
 
 const SEARCH_PROMPTS = [
   'Hey Alpha, find me 1BR off-plan in JVC under AED 900K…',
@@ -85,6 +86,18 @@ export default function HomeHero() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Wire submit → open chat. Hero is an entry point — always start fresh.
+  // Past chats remain reachable from the dock icon / future sidebar.
+  const { open, newChat } = useChat();
+  function submit() {
+    const inp = inputRef.current;
+    const v = (inp?.value || '').trim();
+    if (!v) return;
+    if (inp) inp.value = '';
+    newChat();
+    open(v);
+  }
+
   // Ask Alpha hover GIF state (for slide-in)
   const askWrapRef = useRef<HTMLSpanElement | null>(null);
   const [alphaSrc, setAlphaSrc] = useState<string | undefined>(undefined);
@@ -120,13 +133,19 @@ export default function HomeHero() {
         <h1 className="hero-title">Find <em>winning properties</em><br />in seconds, not weeks.</h1>
         <div className="hero-rotor-line">Your AI property analyst for <strong className="rotor">{rotor}</strong></div>
 
-        <div className="search-card">
+        <form className="search-card" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <div className="search-input-wrap">
-            <input ref={inputRef} className="search-input" id="searchInput" placeholder="" />
+            <input
+              ref={inputRef}
+              className="search-input"
+              id="searchInput"
+              placeholder=""
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submit(); } }}
+            />
           </div>
           <div className="search-bottom">
             <div className="search-actions">
-              <button className="icon-btn" aria-label="Voice">
+              <button type="button" className="icon-btn" aria-label="Voice">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4" /></svg>
               </button>
               <span className="ask-btn-wrap" ref={askWrapRef} onMouseEnter={onEnter} onMouseLeave={onLeave}>
@@ -134,14 +153,14 @@ export default function HomeHero() {
                   {alphaSrc && <img className="alpha-gif" alt="" src={alphaSrc} />}
                   {!alphaSrc && <span className="alpha-gif" />}
                 </span>
-                <button className="ask-btn" aria-label="Ask Alpha">
+                <button type="submit" className="ask-btn" aria-label="Ask Alpha">
                   Ask Alpha
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                 </button>
               </span>
             </div>
           </div>
-        </div>
+        </form>
 
         <HomeCarousel />
       </div>

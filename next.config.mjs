@@ -1,5 +1,15 @@
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Pin Turbopack + file tracing to this project dir so a stray lockfile
+  // outside the project (e.g. C:\Users\<user>\package-lock.json) doesn't make
+  // Next infer the wrong workspace root and 404 every route.
+  turbopack: { root: __dirname },
+  outputFileTracingRoot: __dirname,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.s3.eu-west-2.amazonaws.com' },
