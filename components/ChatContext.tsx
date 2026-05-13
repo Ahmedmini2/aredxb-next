@@ -11,6 +11,9 @@ export type UIMessage = {
   content: string;
   cards?: ChatCard[] | null;
   pending?: boolean;
+  // Marks a freshly-arrived assistant message that should typewriter-animate.
+  // Server-loaded history messages stay false and show fully on mount.
+  animate?: boolean;
 };
 
 type ChatState = {
@@ -33,6 +36,10 @@ type ChatActions = {
 const ChatCtx = createContext<(ChatState & ChatActions) | null>(null);
 
 const LS_KEY = 'aa-chat-conversation-id';
+// Tracks whether the user has an active chat session — when true, the dock
+// icon is shown on page load so they can resume after a refresh.
+// Cleared only on explicit close (X button) or newChat.
+const LS_VISIBLE_KEY = 'aa-chat-visible';
 
 function tempId() {
   return 'tmp-' + Math.random().toString(36).slice(2, 10);
@@ -46,11 +53,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Hydrate conversation id from localStorage on mount.
+  // Hydrate conversation id + visibility flag from localStorage on mount.
+  // If the user had an active chat session, restore the dock icon so they
+  // can resume after a hard refresh without losing their entry point.
   useEffect(() => {
     try {
       const id = localStorage.getItem(LS_KEY);
       if (id) setConversationId(id);
+      const visible = localStorage.getItem(LS_VISIBLE_KEY);
+      if (visible === '1') setMode('minimized');
     } catch {}
   }, []);
 
@@ -61,6 +72,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       else localStorage.removeItem(LS_KEY);
     } catch {}
   }, [conversationId]);
+
+  // Persist visibility — any non-closed mode means "user has chat going,
+  // bring back the dock on refresh." Explicit close clears it.
+  useEffect(() => {
+    try {
+      if (mode === 'closed') localStorage.removeItem(LS_VISIBLE_KEY);
+      else localStorage.setItem(LS_VISIBLE_KEY, '1');
+    } catch {}
+  }, [mode]);
 
   // When mode goes from 'closed' to a visible state and we have a conversationId
   // but no loaded messages, fetch the history once.
@@ -116,6 +136,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                   role: 'assistant',
                   content: res.reply,
                   cards: res.cards ?? null,
+                  animate: true,
                 }
               : x,
           ),

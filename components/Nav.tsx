@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useChat } from './ChatContext';
 
 type FeaturedProject = {
   id: number | string;
@@ -17,6 +18,7 @@ export default function Nav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [featured, setFeatured] = useState<FeaturedProject[] | null>(null);
   const [featuredLoaded, setFeaturedLoaded] = useState(false);
+  const { open: openChat } = useChat();
 
   // Lock scroll while drawer open + auto-close on resize past breakpoint
   useEffect(() => {
@@ -175,7 +177,7 @@ export default function Nav() {
               <svg className="ic ic-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
               <svg className="ic ic-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
             </button>
-            <Link className="btn btn-primary" href="/#searchInput">Ask Alpha</Link>
+            <button type="button" className="btn btn-primary" onClick={() => openChat()}>Ask Alpha</button>
             <button className="nav-burger" aria-label="Open menu" type="button" onClick={() => setMenuOpen(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
             </button>
@@ -240,7 +242,7 @@ export default function Nav() {
             <svg className="ic ic-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
             <svg className="ic ic-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>
           </button>
-          <Link className="btn btn-primary" href="/#searchInput" onClick={() => setMenuOpen(false)}>Ask Alpha</Link>
+          <button type="button" className="btn btn-primary" onClick={() => { setMenuOpen(false); openChat(); }}>Ask Alpha</button>
         </div>
       </div>
     </>

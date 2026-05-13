@@ -30,6 +30,8 @@ const SUMMARY_TTL_MS = 10 * 60 * 1000;
 let s3Cache: Record<string, AssetIndexEntry> = {};
 let s3CacheBuiltAt = 0;
 let s3BuildPromise: Promise<Record<string, AssetIndexEntry>> | null = null;
+// dev-slug -> developer logo URL (any of: {dev-slug}/logo.{png|jpg|jpeg|webp|svg})
+let devLogoCache: Record<string, string> = {};
 
 let summaryCache: ProjectSummary[] | null = null;
 let summaryCacheBuiltAt = 0;
@@ -54,19 +56,37 @@ function publicUrl(key: string): string {
 async function buildS3Index(): Promise<Record<string, AssetIndexEntry>> {
   if (!s3) return {};
   const idx: Record<string, AssetIndexEntry> = {};
+  const logos: Record<string, string> = {};
   let token: string | undefined;
   let page = 0;
   do {
     const r = await s3.send(new ListObjectsV2Command({ Bucket: BUCKET, MaxKeys: 1000, ContinuationToken: token }));
     (r.Contents || []).forEach((obj) => {
-      const parts = (obj.Key || '').split('/');
-      if (parts.length < 4) return;
-      const dev = parts[0], proj = parts[1], sub = parts[2], filename = parts[parts.length - 1];
+      const key = obj.Key || '';
+      const parts = key.split('/');
+      const filename = parts[parts.length - 1] || '';
+      const isImage = /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(filename);
       if (!filename) return;
+
+      // Developer-logo lookup. Actual bucket convention is
+      //   {dev-slug}/_brand/logo.{ext}
+      // A few legacy / fallback conventions are also accepted.
+      if (isImage) {
+        if (parts.length >= 3 && parts[1] === '_brand' && /^logo\.(jpe?g|png|webp|svg)$/i.test(parts[2])) {
+          logos[parts[0]] ||= publicUrl(key);
+        } else if (parts.length === 2 && /^logo\.(jpe?g|png|webp|svg)$/i.test(parts[1])) {
+          logos[parts[0]] ||= publicUrl(key);
+        } else if (parts.length >= 3 && parts[1].toLowerCase() === 'logo') {
+          logos[parts[0]] ||= publicUrl(key);
+        }
+      }
+
+      // Project assets — original logic.
+      if (parts.length < 4) return;
+      const dev = parts[0], proj = parts[1], sub = parts[2];
       const projKey = dev + '/' + proj;
       if (!idx[projKey]) idx[projKey] = { dev, proj, images: [], floorPlans: [], brochures: [] };
-      const url = publicUrl(obj.Key!);
-      const isImage = /\.(jpe?g|png|webp|gif|avif)$/i.test(filename);
+      const url = publicUrl(key);
       const isPdf = /\.pdf$/i.test(filename);
       if (sub === 'images' && isImage) idx[projKey].images.push(url);
       else if (sub === 'floor-plans') {
@@ -77,7 +97,19 @@ async function buildS3Index(): Promise<Record<string, AssetIndexEntry>> {
     token = r.IsTruncated ? r.NextContinuationToken : undefined;
     page++;
   } while (token && page < 100);
+  devLogoCache = logos;
   return idx;
+}
+
+export async function getDeveloperLogo(developerName: string): Promise<string | null> {
+  if (!developerName) return null;
+  await ensureS3Index(); // populates devLogoCache as a side effect
+  const slug = slugify(developerName);
+  if (devLogoCache[slug]) return devLogoCache[slug];
+  // Last resort: scan for any key in the logo cache that contains the slug
+  // (handles e.g. "damac-properties" vs "damac")
+  const hit = Object.keys(devLogoCache).find((k) => k.includes(slug) || slug.includes(k));
+  return hit ? devLogoCache[hit] : null;
 }
 
 export async function ensureS3Index(): Promise<Record<string, AssetIndexEntry>> {

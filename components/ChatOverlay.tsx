@@ -32,13 +32,23 @@ function ChatSurface({ variant }: { variant: 'full' | 'widget' }) {
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastUserIdRef = useRef<string | null>(null);
 
-  // Autoscroll to bottom on new messages.
+  // Scroll the most recent user message to the top of the chat viewport,
+  // so the user always sees their question first and the answer streams below.
+  // Triggers on first load (existing conversation) and every new send.
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages.length, sending]);
+    let latestUserId: string | null = null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') { latestUserId = messages[i].id; break; }
+    }
+    if (!latestUserId || latestUserId === lastUserIdRef.current) return;
+    lastUserIdRef.current = latestUserId;
+    requestAnimationFrame(() => {
+      const el = scrollRef.current?.querySelector(`[data-msg-id="${latestUserId}"]`) as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [messages]);
 
   // Focus the input when surface mounts.
   useEffect(() => {
@@ -111,7 +121,9 @@ function ChatSurface({ variant }: { variant: 'full' | 'widget' }) {
         ) : (
           <div className="aa-chat-list">
             {messages.map((m) => <MessageRow key={m.id} m={m} />)}
-            {sending && messages[messages.length - 1]?.role === 'user' && <TypingBubble />}
+            {/* Bottom spacer so the last user question can scroll to the top
+                even when the assistant reply is short. */}
+            <div className="aa-chat-bottom-spacer" aria-hidden="true" />
           </div>
         )}
       </div>
@@ -166,12 +178,58 @@ function EmptyState({ variant, onPick }: { variant: 'full' | 'widget'; onPick: (
 }
 
 function MessageRow({ m }: { m: UIMessage }) {
+  // Typewriter for freshly-arrived assistant messages. Server-history messages
+  // (animate: false/undefined) skip the animation and show fully on mount.
+  const shouldAnimate = m.role === 'assistant' && !!m.animate && !m.pending && m.content.length > 0;
+  const [typed, setTyped] = useState<string>(() => (shouldAnimate ? '' : m.content));
+
+  useEffect(() => {
+    if (m.role !== 'assistant') return;
+    if (m.pending) { setTyped(''); return; }
+    if (!shouldAnimate) { setTyped(m.content); return; }
+    // Resume from however far we already are (handles StrictMode double-invocation
+    // cleanly — the cancelled flag stops the previous loop; this one picks up
+    // from the same typed length on the second invocation).
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const total = m.content.length;
+    const stepFrom = (start: number) => {
+      if (cancelled) return;
+      const next = Math.min(start + 2, total); // ~2 chars per tick
+      setTyped(m.content.slice(0, next));
+      if (next < total) {
+        timer = setTimeout(() => stepFrom(next), 24);
+      }
+    };
+    // Read current typed length via a state updater so we get the freshest value
+    // without depending on `typed` (which would trigger effect re-runs on every tick).
+    setTyped((current) => {
+      const startAt = current.length;
+      timer = setTimeout(() => stepFrom(startAt), 24);
+      return current;
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [m.id, m.role, m.pending, m.content, shouldAnimate]);
+
+  const typingDone = !shouldAnimate || typed === m.content;
+  const showCaret = shouldAnimate && !typingDone;
+
   return (
-    <div className={`aa-msg aa-msg-${m.role}`}>
+    <div className={`aa-msg aa-msg-${m.role}`} data-msg-id={m.id}>
       <div className="aa-msg-avatar">{m.role === 'user' ? 'You' : 'α'}</div>
       <div className="aa-msg-body">
-        {m.pending ? <TypingDots /> : <div className="aa-msg-text">{m.content}</div>}
-        {m.cards && m.cards.length > 0 && <CardStack cards={m.cards} />}
+        {m.pending ? (
+          <Thinking />
+        ) : (
+          <div className="aa-msg-text">
+            {typed}
+            {showCaret && <span className="aa-typing-caret" aria-hidden="true" />}
+          </div>
+        )}
+        {m.cards && m.cards.length > 0 && typingDone && <CardStack cards={m.cards} />}
       </div>
     </div>
   );
@@ -207,17 +265,12 @@ function CardStack({ cards }: { cards: ChatCard[] }) {
   );
 }
 
-function TypingBubble() {
+function Thinking() {
   return (
-    <div className="aa-msg aa-msg-assistant">
-      <div className="aa-msg-avatar">α</div>
-      <div className="aa-msg-body"><TypingDots /></div>
+    <div className="aa-thinking">
+      <img className="aa-thinking-wolf" src="/images/alpha.gif" alt="" />
+      <span className="aa-thinking-text">Thinking</span>
+      <span className="aa-thinking-dots"><span /><span /><span /></span>
     </div>
-  );
-}
-
-function TypingDots() {
-  return (
-    <div className="aa-typing"><span /><span /><span /></div>
   );
 }

@@ -1881,6 +1881,13 @@ body.light .aa-card-badge-sale { background: #84cc16; }
   font-family: 'Geist Mono', monospace; font-size: 11px; font-weight: 600;
   color: var(--text-2);
 }
+.aa-card-dev-logo {
+  width: 22px; height: 22px; flex-shrink: 0;
+  object-fit: contain;
+  background: var(--bg-3); border: 1px solid var(--line); border-radius: 5px;
+  padding: 2px;
+}
+body.light .aa-card-dev-logo { background: #fff; }
 .aa-card-name {
   font-family: 'Instrument Serif', serif; font-weight: 400;
   font-size: 16px; line-height: 1.15; color: var(--text);
@@ -1906,7 +1913,7 @@ body.light .aa-card-badge-sale { background: #84cc16; }
 .aa-card-val-price { color: var(--accent); font-weight: 600; }
 body.light .aa-card-val-price { color: #15803d; }
 
-/* Typing dots */
+/* Legacy typing dots — kept for any external use */
 .aa-typing { display: inline-flex; gap: 5px; padding: 6px 0; }
 .aa-typing span {
   width: 7px; height: 7px; border-radius: 50%;
@@ -1915,6 +1922,62 @@ body.light .aa-card-val-price { color: #15803d; }
 }
 .aa-typing span:nth-child(2) { animation-delay: 0.15s; }
 .aa-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+/* Thinking row with wolf gif */
+.aa-thinking {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+  font-family: 'Geist Mono', monospace; font-size: 12px;
+  letter-spacing: 0.04em; color: var(--text-2);
+}
+.aa-thinking-wolf {
+  width: 22px; height: 22px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+.aa-thinking-text {
+  background: linear-gradient(90deg, var(--text-3) 0%, var(--accent) 50%, var(--text-3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: aa-thinking-shimmer 1.6s linear infinite;
+}
+.aa-thinking-dots {
+  display: inline-flex; gap: 3px;
+}
+.aa-thinking-dots span {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--accent);
+  animation: aa-chat-typing 1.1s infinite ease-in-out;
+}
+.aa-thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.aa-thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes aa-thinking-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Typewriter caret — blinks at end of streaming text */
+.aa-typing-caret {
+  display: inline-block;
+  width: 7px; height: 1.1em;
+  vertical-align: -0.18em;
+  margin-left: 2px;
+  background: var(--accent);
+  animation: aa-caret-blink 1s steps(1, end) infinite;
+  border-radius: 1px;
+}
+@keyframes aa-caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Small breathing room after the last message — no large spacer.
+   scrollIntoView handles "question at top" naturally when there's enough
+   content; short replies stay tight to the composer. */
+.aa-chat-bottom-spacer { height: 24px; flex-shrink: 0; }
 
 /* Composer */
 .aa-chat-composer {

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import type { ProjectListItem } from '@/lib/chat';
 
 function shortAED(n: number | null | undefined): string {
@@ -33,8 +34,71 @@ function locationLine(p: ProjectListItem): string {
   return [p.district, p.city || p.region].filter(Boolean).join(', ');
 }
 
+// Module-level caches so re-renders / multiple cards for the same project
+// or developer don't refetch.
+const coverCache = new Map<string, string | null>();
+const devLogoCache = new Map<string, string | null>();
+function cacheKey(dev: string, proj: string) {
+  return (dev || '').toLowerCase() + '|' + (proj || '').toLowerCase();
+}
+
 export default function ChatProjectCard({ project }: { project: ProjectListItem }) {
-  const img = project.cover_image_url || '';
+  const dev = project.developer || '';
+  const name = project.name || '';
+  const key = cacheKey(dev, name);
+
+  const [img, setImg] = useState<string | null>(() => coverCache.get(key) ?? null);
+  const devKey = (dev || '').toLowerCase();
+  const [devLogo, setDevLogo] = useState<string | null>(() => devLogoCache.get(devKey) ?? null);
+
+  // S3 ONLY — ignore project.cover_image_url (those are Reelly URLs).
+  // Resolve the cover from our own bucket via /api/offplan/cover.
+  useEffect(() => {
+    if (coverCache.has(key)) {
+      setImg(coverCache.get(key) ?? null);
+      return;
+    }
+    if (!name) return;
+    const ctrl = new AbortController();
+    fetch(
+      `/api/offplan/cover?dev=${encodeURIComponent(dev)}&proj=${encodeURIComponent(name)}`,
+      { signal: ctrl.signal },
+    )
+      .then((r) => r.json())
+      .then((j) => {
+        const url: string | null = j?.url || null;
+        coverCache.set(key, url);
+        setImg(url);
+      })
+      .catch(() => {
+        coverCache.set(key, null);
+        setImg(null);
+      });
+    return () => ctrl.abort();
+  }, [key, dev, name]);
+
+  // Developer logo, also from our S3 bucket only.
+  useEffect(() => {
+    if (devLogoCache.has(devKey)) {
+      setDevLogo(devLogoCache.get(devKey) ?? null);
+      return;
+    }
+    if (!dev) return;
+    const ctrl = new AbortController();
+    fetch(`/api/developer/logo?dev=${encodeURIComponent(dev)}`, { signal: ctrl.signal })
+      .then((r) => r.json())
+      .then((j) => {
+        const url: string | null = j?.url || null;
+        devLogoCache.set(devKey, url);
+        setDevLogo(url);
+      })
+      .catch(() => {
+        devLogoCache.set(devKey, null);
+        setDevLogo(null);
+      });
+    return () => ctrl.abort();
+  }, [devKey, dev]);
+
   const sale = humanize(project.sale_status);
   const handover = project.completion_quarter || '';
   const status = humanize(project.status);
@@ -51,7 +115,11 @@ export default function ChatProjectCard({ project }: { project: ProjectListItem 
       </div>
       <div className="aa-card-body">
         <div className="aa-card-dev-row">
-          <span className="aa-card-dev-mark">{(project.developer || '?').slice(0, 1).toUpperCase()}</span>
+          {devLogo ? (
+            <img className="aa-card-dev-logo" src={devLogo} alt={dev} />
+          ) : (
+            <span className="aa-card-dev-mark">{(project.developer || '?').slice(0, 1).toUpperCase()}</span>
+          )}
           <h4 className="aa-card-name">{project.name}</h4>
         </div>
         <div className="aa-card-loc">{locationLine(project) || project.country || '—'}</div>
